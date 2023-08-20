@@ -371,6 +371,12 @@ fn state_transition<F: ScalarField>(
         ap,
         decoded_instruction.ap_update,
     );
+    println!(
+        "next_pc: {:?}, next_ap: {:?}, next_fp: {:?}",
+        next_pc.value(),
+        next_ap.value(),
+        next_fp.value()
+    );
     (next_pc, next_ap, next_fp)
 }
 
@@ -379,7 +385,7 @@ fn vm<F: ScalarField>(
     cario_state: CarioState,
     _: &mut Vec<AssignedValue<F>>,
 ) {
-    let num_clock_cycles = 10;
+    let num_clock_cycles = 3;
     let mut fp = ctx.load_witness(F::from_str_vartime(&cario_state.fp).unwrap());
     let mut ap = ctx.load_witness(F::from_str_vartime(&cario_state.ap).unwrap());
     let mut pc = ctx.load_witness(F::from_str_vartime(&cario_state.pc).unwrap());
