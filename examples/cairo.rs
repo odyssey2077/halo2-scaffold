@@ -1,5 +1,6 @@
 use clap::Parser;
 use halo2_base::gates::{GateChip, GateInstructions};
+use halo2_base::halo2_proofs::halo2curves::bn256::Fr;
 use halo2_base::utils::{fe_to_biguint, ScalarField};
 use halo2_base::QuantumCell;
 use halo2_base::{
@@ -380,19 +381,17 @@ fn state_transition<F: ScalarField>(
     (next_pc, next_ap, next_fp)
 }
 
-fn vm<F: ScalarField>(
+fn vm<F: ScalarField, const NUM_CLOCK_CYCLES: usize>(
     ctx: &mut Context<F>,
     cairo_state: CairoState,
-    _: &mut Vec<AssignedValue<F>>,
 ) {
-    let num_clock_cycles = 3;
     let mut fp = ctx.load_witness(F::from_str_vartime(&cairo_state.fp).unwrap());
     let mut ap = ctx.load_witness(F::from_str_vartime(&cairo_state.ap).unwrap());
     let mut pc = ctx.load_witness(F::from_str_vartime(&cairo_state.pc).unwrap());
     let memory = ctx.assign_witnesses(
         cairo_state.memory.iter().map(|x| F::from_str_vartime(x).unwrap()).collect::<Vec<_>>(),
     );
-    for _ in 0..num_clock_cycles {
+    for _ in 0..NUM_CLOCK_CYCLES {
         (pc, ap, fp) = state_transition(ctx, &memory, pc, ap, fp);
     }
 }
@@ -402,5 +401,5 @@ fn main() {
 
     let args = Cli::parse();
 
-    run(vm, args);
+    run(|ctx, cairo_state, _| vm::<Fr, 3>(ctx, cairo_state), args);
 }
