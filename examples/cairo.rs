@@ -94,16 +94,16 @@ fn decode_instruction<F: ScalarField>(
 fn read_memory<F: ScalarField>(
     ctx: &mut Context<F>,
     gate: &GateChip<F>,
-    memory: Vec<AssignedValue<F>>,
+    memory: &Vec<AssignedValue<F>>,
     address: AssignedValue<F>,
 ) -> AssignedValue<F> {
-    gate.select_from_idx(ctx, memory, address)
+    gate.select_from_idx(ctx, memory.clone(), address)
 }
 
 fn compute_op0<F: ScalarField>(
     ctx: &mut Context<F>,
     gate: &GateChip<F>,
-    memory: Vec<AssignedValue<F>>,
+    memory: &Vec<AssignedValue<F>>,
     op0_reg: AssignedValue<F>, // one bit
     ap: AssignedValue<F>,
     fp: AssignedValue<F>,
@@ -111,8 +111,8 @@ fn compute_op0<F: ScalarField>(
 ) -> AssignedValue<F> {
     let ap_plus_off_op0 = gate.add(ctx, ap, off_op0);
     let fp_plus_off_op0 = gate.add(ctx, fp, off_op0);
-    let op0_0 = read_memory(ctx, gate, memory.clone(), ap_plus_off_op0);
-    let op_0_1 = read_memory(ctx, gate, memory.clone(), fp_plus_off_op0);
+    let op0_0 = read_memory(ctx, gate, &memory, ap_plus_off_op0);
+    let op_0_1 = read_memory(ctx, gate, &memory, fp_plus_off_op0);
     let op0 = gate.select(ctx, op_0_1, op0_0, op0_reg);
     op0
 }
@@ -121,7 +121,7 @@ fn compute_op0<F: ScalarField>(
 fn compute_op1_and_instruction_size<F: ScalarField>(
     ctx: &mut Context<F>,
     gate: &GateChip<F>,
-    memory: Vec<AssignedValue<F>>,
+    memory: &Vec<AssignedValue<F>>,
     op1_src: AssignedValue<F>,
     op0: AssignedValue<F>,
     off_op1: AssignedValue<F>,
@@ -139,11 +139,11 @@ fn compute_op1_and_instruction_size<F: ScalarField>(
     let ap_off_op1 = gate.add(ctx, ap, off_op1);
 
     let op1_values: Vec<QuantumCell<F>> = vec![
-        Existing(read_memory(ctx, gate, memory.clone(), op0_off_op1)),
-        Existing(read_memory(ctx, gate, memory.clone(), pc_off_op1)),
-        Existing(read_memory(ctx, gate, memory.clone(), fp_off_op1)),
+        Existing(read_memory(ctx, gate, memory, op0_off_op1)),
+        Existing(read_memory(ctx, gate, memory, pc_off_op1)),
+        Existing(read_memory(ctx, gate, memory, fp_off_op1)),
         Witness(F::zero()), // undefined behavior
-        Existing(read_memory(ctx, gate, memory.clone(), ap_off_op1)),
+        Existing(read_memory(ctx, gate, memory, ap_off_op1)),
     ];
     let instruction_values = vec![
         Constant(F::one()),
@@ -188,7 +188,7 @@ fn compute_res<F: ScalarField>(
 fn compute_dst<F: ScalarField>(
     ctx: &mut Context<F>,
     gate: &GateChip<F>,
-    memory: Vec<AssignedValue<F>>,
+    memory: &Vec<AssignedValue<F>>,
     ap: AssignedValue<F>,
     fp: AssignedValue<F>,
     off_dst: AssignedValue<F>,
@@ -196,9 +196,9 @@ fn compute_dst<F: ScalarField>(
 ) -> AssignedValue<F> {
     let is_dst_reg_zero = gate.is_zero(ctx, dst_reg);
     let address_a = gate.add(ctx, ap, off_dst);
-    let var_a = read_memory(ctx, gate, memory.clone(), address_a);
+    let var_a = read_memory(ctx, gate, memory, address_a);
     let address_b = gate.add(ctx, fp, off_dst);
-    let var_b = read_memory(ctx, gate, memory.clone(), address_b);
+    let var_b = read_memory(ctx, gate, memory, address_b);
     let dst = gate.select(ctx, var_a, var_b, is_dst_reg_zero);
     dst
 }
@@ -302,19 +302,19 @@ fn compute_next_ap_fp<F: ScalarField>(
 
 fn state_transition<F: ScalarField>(
     ctx: &mut Context<F>,
-    memory: Vec<AssignedValue<F>>,
+    memory: &Vec<AssignedValue<F>>,
     pc: AssignedValue<F>,
     ap: AssignedValue<F>,
     fp: AssignedValue<F>,
 ) -> (AssignedValue<F>, AssignedValue<F>, AssignedValue<F>) {
     let gate = GateChip::<F>::default();
 
-    let instruction = gate.select_from_idx(ctx, memory.to_vec(), pc);
+    let instruction = gate.select_from_idx(ctx, memory.clone(), pc);
     let decoded_instruction = decode_instruction(ctx, &gate, instruction);
     let op0 = compute_op0(
         ctx,
         &gate,
-        memory.clone(),
+        memory,
         decoded_instruction.op0_reg,
         ap,
         fp,
@@ -323,7 +323,7 @@ fn state_transition<F: ScalarField>(
     let (op1, instruction_size) = compute_op1_and_instruction_size(
         ctx,
         &gate,
-        memory.clone(),
+        memory,
         decoded_instruction.op1_src,
         op0,
         decoded_instruction.off_op1,
@@ -342,7 +342,7 @@ fn state_transition<F: ScalarField>(
     let dst = compute_dst(
         ctx,
         &gate,
-        memory.clone(),
+        memory,
         ap,
         fp,
         decoded_instruction.off_dst,
@@ -393,7 +393,7 @@ fn vm<F: ScalarField>(
         cario_state.memory.iter().map(|x| F::from_str_vartime(x).unwrap()).collect::<Vec<_>>(),
     );
     for _ in 0..num_clock_cycles {
-        (pc, ap, fp) = state_transition(ctx, memory.clone(), pc, ap, fp);
+        (pc, ap, fp) = state_transition(ctx, &memory, pc, ap, fp);
     }
 }
 
