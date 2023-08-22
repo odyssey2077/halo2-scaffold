@@ -10,7 +10,7 @@ use halo2_scaffold::scaffold::run;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CarioState {
+pub struct CairoState {
     pub memory: Vec<String>,
     pub pc: String,
     pub ap: String,
@@ -382,15 +382,15 @@ fn state_transition<F: ScalarField>(
 
 fn vm<F: ScalarField>(
     ctx: &mut Context<F>,
-    cario_state: CarioState,
+    cairo_state: CairoState,
     _: &mut Vec<AssignedValue<F>>,
 ) {
     let num_clock_cycles = 3;
-    let mut fp = ctx.load_witness(F::from_str_vartime(&cario_state.fp).unwrap());
-    let mut ap = ctx.load_witness(F::from_str_vartime(&cario_state.ap).unwrap());
-    let mut pc = ctx.load_witness(F::from_str_vartime(&cario_state.pc).unwrap());
+    let mut fp = ctx.load_witness(F::from_str_vartime(&cairo_state.fp).unwrap());
+    let mut ap = ctx.load_witness(F::from_str_vartime(&cairo_state.ap).unwrap());
+    let mut pc = ctx.load_witness(F::from_str_vartime(&cairo_state.pc).unwrap());
     let memory = ctx.assign_witnesses(
-        cario_state.memory.iter().map(|x| F::from_str_vartime(x).unwrap()).collect::<Vec<_>>(),
+        cairo_state.memory.iter().map(|x| F::from_str_vartime(x).unwrap()).collect::<Vec<_>>(),
     );
     for _ in 0..num_clock_cycles {
         (pc, ap, fp) = state_transition(ctx, &memory, pc, ap, fp);
